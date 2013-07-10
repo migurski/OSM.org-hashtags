@@ -10,15 +10,15 @@ This is a python application. Package requirements are listed in `requirements.t
 
 To install needed packages and prepare the database, use `make`:
 
-make changesets.db
+    make changesets.db
     make venv-osm-tagwatch
 
 ...then activate your virtual environment:
 
-source venv-osm-tagwatch/bin/activate
+    source venv-osm-tagwatch/bin/activate
 
 To run, use this command:
 
-python process.py
+    python process.py
 
 On first run, the file `last.yaml` will be created to mark the last-known sequence number. On subsequent runs, all intervening changesets files will be downloaded in turn and saved; delete `last.yaml` to ignore missing history.
