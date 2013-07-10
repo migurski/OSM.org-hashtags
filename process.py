@@ -1,6 +1,7 @@
 from yaml import load, dump
 from xml.etree import ElementTree
 from dateutil.parser import parse
+from fcntl import flock, LOCK_EX, LOCK_UN
 from StringIO import StringIO
 from urlparse import urljoin
 from calendar import timegm
@@ -10,12 +11,28 @@ from gzip import GzipFile
 
 base = 'http://planet.openstreetmap.org/replication/changesets/'
 
+class OpenLocked:
+    ''' Context manager for a locked file open in a+ mode, seek(0).
+    '''
+    def __init__(self, fname):
+        self.fname = fname
+        self.file = None
+    
+    def __enter__(self):
+        self.file = open(self.fname, 'a+')
+        flock(self.file, LOCK_EX)
+        self.file.seek(0)
+        return self.file
+    
+    def __exit__(self, *args):
+        flock(self.file, LOCK_UN)
+        self.file.close()
+
 if __name__ == '__main__':
 
     remote = load(urlopen(urljoin(base, 'state.yaml')))
     
-    with open('last.yaml', 'a+') as last:
-        last.seek(0)
+    with OpenLocked('last.yaml') as last:
         local = load(last)
         
         #
