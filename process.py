@@ -1,4 +1,4 @@
-from yaml import load, dump
+﻿from yaml import load, dump
 from xml.etree import ElementTree
 from dateutil.parser import parse
 from fcntl import flock, LOCK_EX, LOCK_UN
@@ -8,8 +8,12 @@ from calendar import timegm
 from sqlite3 import connect
 from urllib import urlopen
 from gzip import GzipFile
+from re import compile
 
 base = 'http://planet.openstreetmap.org/replication/changesets/'
+
+# regular expression partly borrowed from http://code.google.com/p/twitter-api/issues/detail?id=1508
+hashtag = compile(r'(^|\s)#(?P<tag>[^\-\+\)\(\[\]\?\=\*\}\{\:\.\;\,\"\'\!\<\>\|\s\~\&\§\$\%\/\\\\µ#]+)')
 
 class OpenLocked:
     ''' Context manager for a locked file open in a+ mode, seek(0).
@@ -74,6 +78,9 @@ if __name__ == '__main__':
                 for tag in cs.findall('tag'):
                     if tag.attrib['k'] == 'comment':
                         changeset[4] = tag.attrib['v']
+                        
+                        for match in hashtag.finditer(tag.attrib['v']):
+                            print match.group('tag')
                 
                 changesets.append(changeset)
             
