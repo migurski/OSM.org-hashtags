@@ -63,44 +63,53 @@ if __name__ == '__main__':
             for cs in osm.findall('changeset'):
                 changeset_id = int(cs.attrib['id'])
                 changeset_created = timegm(parse(cs.attrib['created_at']).timetuple())
-            
+                prev_hashtags_len = len(hashtags)
+                changeset_comment = False
+                
+                for tag in cs.findall('tag'):
+                    if tag.attrib['k'] != 'comment':
+                        continue
+
+                    changeset_comment = tag.attrib['v']
+                    
+                    for match in tag_pat.finditer(changeset_comment):
+                        hashtag = [
+                            # tag, chset_id, chset_date
+                            match.group('tag'),
+                            changeset_id,
+                            changeset_created,
+                            
+                            # tag_start, tag_end
+                            match.start('tag') - 1,
+                            match.end('tag'),
+                            ]
+                    
+                        hashtags.append(hashtag)
+                
+                #
+                # Skip this changeset if no comment or hashtag was found.
+                #
+                if not changeset_comment or len(hashtags) == prev_hashtags_len: 
+                    continue
+                
                 changeset = [
-                    # id, created (0, 1)
+                    # id, created
                     changeset_id,
                     changeset_created,
 
-                    # uid, user (2, 3)
+                    # uid, user
                     int(cs.attrib['uid']),
                     cs.attrib['user'],
                 
-                    # comment (4)
-                    '',
+                    # comment
+                    changeset_comment,
                     
-                    # minlat, minlon, maxlat, maxlon (5-8)
+                    # minlat, minlon, maxlat, maxlon
                     float(cs.attrib.get('min_lat', '0')),
                     float(cs.attrib.get('min_lon', '0')),
                     float(cs.attrib.get('max_lat', '0')),
                     float(cs.attrib.get('max_lon', '0')),
                     ]
-                
-                for tag in cs.findall('tag'):
-                    if tag.attrib['k'] == 'comment':
-                        changeset_comment = tag.attrib['v'] + ' #woot'
-                        changeset[4] = changeset_comment
-                        
-                        for match in tag_pat.finditer(changeset_comment):
-                            hashtag = [
-                                # tag, chset_id, chset_date (0, 1, 2)
-                                match.group('tag'),
-                                changeset_id,
-                                changeset_created,
-                                
-                                # tag_start, tag_end (3, 4)
-                                match.start('tag') - 1,
-                                match.end('tag'),
-                                ]
-                        
-                            hashtags.append(hashtag)
                 
                 changesets.append(changeset)
             
