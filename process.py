@@ -13,7 +13,7 @@ from re import compile
 base = 'http://planet.openstreetmap.org/replication/changesets/'
 
 # regular expression partly borrowed from http://code.google.com/p/twitter-api/issues/detail?id=1508
-hashtag = compile(r'(^|\s)#(?P<tag>[^\-\+\)\(\[\]\?\=\*\}\{\:\.\;\,\"\'\!\<\>\|\s\~\&\§\$\%\/\\\\µ#]+)')
+tag_pat = compile(r'(^|\s)#(?P<tag>[^\-\+\)\(\[\]\?\=\*\}\{\:\.\;\,\"\'\!\<\>\|\s\~\&\§\$\%\/\\\\µ#]+)')
 
 class OpenLocked:
     ''' Context manager for a locked file open in a+ mode, seek(0).
@@ -50,6 +50,7 @@ if __name__ == '__main__':
         #
         for sequence in range(local['sequence'] + 1, remote['sequence'] + 1):
             changesets = []
+            hashtags = []
             
             path = str(int(1e10 + sequence))
             path = '%s/%s/%s.osm.gz' % (path[-9:-6], path[-6:-3], path[-3:])
@@ -60,15 +61,22 @@ if __name__ == '__main__':
             osm = ElementTree.parse(xml)
             
             for cs in osm.findall('changeset'):
+                changeset_id = int(cs.attrib['id'])
+                changeset_created = timegm(parse(cs.attrib['created_at']).timetuple())
+            
                 changeset = [
-                    int(cs.attrib['id']),
-                    timegm(parse(cs.attrib['created_at']).timetuple()),
+                    # id, created (0, 1)
+                    changeset_id,
+                    changeset_created,
 
+                    # uid, user (2, 3)
                     int(cs.attrib['uid']),
                     cs.attrib['user'],
                 
-                    '', # comment
+                    # comment (4)
+                    '',
                     
+                    # minlat, minlon, maxlat, maxlon (5-8)
                     float(cs.attrib.get('min_lat', '0')),
                     float(cs.attrib.get('min_lon', '0')),
                     float(cs.attrib.get('max_lat', '0')),
@@ -77,16 +85,31 @@ if __name__ == '__main__':
                 
                 for tag in cs.findall('tag'):
                     if tag.attrib['k'] == 'comment':
-                        changeset[4] = tag.attrib['v']
+                        changeset_comment = tag.attrib['v'] + ' #woot'
+                        changeset[4] = changeset_comment
                         
-                        for match in hashtag.finditer(tag.attrib['v']):
-                            print match.group('tag')
+                        for match in tag_pat.finditer(changeset_comment):
+                            hashtag = [
+                                # tag, chset_id, chset_date (0, 1, 2)
+                                match.group('tag'),
+                                changeset_id,
+                                changeset_created,
+                                
+                                # tag_start, tag_end (3, 4)
+                                match.start('tag') - 1,
+                                match.end('tag'),
+                                ]
+                        
+                            hashtags.append(hashtag)
                 
                 changesets.append(changeset)
             
             with connect('changesets.db') as db:
                 db.executemany('''INSERT OR REPLACE INTO changesets
                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', changesets)
+
+                db.executemany('''INSERT OR REPLACE INTO hashtags
+                                  VALUES (?, ?, ?, ?, ?)''', hashtags)
             
             local = dict(sequence=sequence)
         
