@@ -60,12 +60,18 @@ if __name__ == '__main__':
             xml = GzipFile(fileobj=raw)
             osm = ElementTree.parse(xml)
             
+            #
+            # Look at each changeset element in the file.
+            #
             for cs in osm.findall('changeset'):
                 changeset_id = int(cs.attrib['id'])
                 changeset_created = timegm(parse(cs.attrib['created_at']).timetuple())
                 prev_hashtags_len = len(hashtags)
                 changeset_comment = False
                 
+                #
+                # Changeset comments are stored as tags, so iterate over those.
+                #
                 for tag in cs.findall('tag'):
                     if tag.attrib['k'] != 'comment':
                         continue
@@ -73,7 +79,7 @@ if __name__ == '__main__':
                     changeset_comment = tag.attrib['v']
                     
                     for match in tag_pat.finditer(changeset_comment):
-                        hashtag = [
+                        hashtag_row = [
                             # tag, chset_id, chset_date
                             match.group('tag'),
                             changeset_id,
@@ -84,7 +90,7 @@ if __name__ == '__main__':
                             match.end('tag'),
                             ]
                     
-                        hashtags.append(hashtag)
+                        hashtags.append(hashtag_row)
                 
                 #
                 # Skip this changeset if no comment or hashtag was found.
@@ -92,7 +98,7 @@ if __name__ == '__main__':
                 if not changeset_comment or len(hashtags) == prev_hashtags_len: 
                     continue
                 
-                changeset = [
+                changeset_row = [
                     # id, created
                     changeset_id,
                     changeset_created,
@@ -111,8 +117,11 @@ if __name__ == '__main__':
                     float(cs.attrib.get('max_lon', '0')),
                     ]
                 
-                changesets.append(changeset)
+                changesets.append(changeset_row)
             
+            #
+            # Write all hashtags and changesets to database.
+            #
             with connect('changesets.db') as db:
                 db.executemany('''INSERT OR REPLACE INTO changesets
                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', changesets)
@@ -120,10 +129,14 @@ if __name__ == '__main__':
                 db.executemany('''INSERT OR REPLACE INTO hashtags
                                   VALUES (?, ?, ?, ?, ?)''', hashtags)
             
+            #
+            # Record the sequence number.
+            #
             local = dict(sequence=sequence)
         
             last.seek(0)
             last.truncate(0)
             dump(local, last)
             
-            print sequence, 'of', remote['sequence']
+            print sequence, 'of', remote['sequence'], 'had', len(changesets),
+            print 'changeset' + ('s' if len(changesets) != 1 else '')
