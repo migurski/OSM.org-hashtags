@@ -1,4 +1,6 @@
-﻿from yaml import load, dump
+# -*- coding: utf-8 -*-
+
+from yaml import load, dump
 from xml.etree import ElementTree
 from dateutil.parser import parse
 from fcntl import flock, LOCK_EX, LOCK_UN
