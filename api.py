@@ -34,6 +34,8 @@ def tag_changes(hashtag):
                          (hashtag, ))
         
         rows = [dict(id=id, time=time, uid=uid, user=user,
+                     user_href='http://www.openstreetmap.org/user/' + user.encode('utf8'),
+                     href='http://www.openstreetmap.org/browse/changeset/' + str(id),
                      comment=comment, bounds=(b0, b1, b2, b3))
                 for (id, time, uid, user, comment, b0, b1, b2, b3) in cur]
 
