@@ -21,7 +21,7 @@ CREATE TABLE changesets
 
 CREATE TABLE hashtags
 (
-    tag         TEXT,
+    tag         TEXT COLLATE NOCASE,
     chset_id    INTEGER,
     chset_date  INTEGER,
     
